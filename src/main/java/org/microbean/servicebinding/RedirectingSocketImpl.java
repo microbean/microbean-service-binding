@@ -16,15 +16,13 @@
  */
 package org.microbean.servicebinding;
 
-import java.io.FileDescriptor;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress; // for javadoc only
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketImpl;
@@ -39,71 +37,110 @@ import java.util.function.Function;
 
 public class RedirectingSocketImpl extends DelegatingSocketImpl {
 
-  private final Function<? super Entry<?, ? extends Integer>, Entry<?, ? extends Integer>> redirector;
+  private final Function<? super Entry<?, ? extends Integer>, ? extends Entry<?, ? extends Integer>> redirector;
 
-  public RedirectingSocketImpl(final Function<? super Entry<?, ? extends Integer>, Entry<?, ? extends Integer>> redirector) {
-    super();
-    this.redirector = Objects.requireNonNull(redirector);
+  /**
+   * Creates a new {@link RedirectingSocketImpl}.
+   *
+   * @param redirector a {@link Function} that accepts an {@link
+   * Entry} whose {@linkplain Entry#getKey() key} is either a {@link
+   * String} hostname, an {@link InetAddress} or an {@link
+   * InetSocketAddress}, and whose {@linkplain Entry#getValue() value}
+   * is a non-{@code null} {@link Integer} representing a port in the
+   * first two cases and a timeout in seconds in the third case; may
+   * be {@code null}
+   *
+   * @see #RedirectingSocketImpl(SocketImpl, Function)
+   */
+  public RedirectingSocketImpl(final Function<? super Entry<?, ? extends Integer>, ? extends Entry<?, ? extends Integer>> redirector) {
+    this(null, redirector);
   }
-  
-  public RedirectingSocketImpl(final SocketImpl delegate, final Function<? super Entry<?, ? extends Integer>, Entry<?, ? extends Integer>> redirector) {
-    super(Objects.requireNonNull(delegate));
-    this.redirector = Objects.requireNonNull(redirector);
+
+  /**
+   * Creates a new {@link RedirectingSocketImpl}.
+   *
+   * @param delegate the {@link SocketImpl} to delegate operations to;
+   * may be {@code null} in which case an instance of {@code
+   * java.net.SocksSocketImpl} will be used instead
+   *
+   * @param redirector a {@link Function} that accepts an {@link
+   * Entry} whose {@linkplain Entry#getKey() key} is either a {@link
+   * String} hostname, an {@link InetAddress} or an {@link
+   * InetSocketAddress}, and whose {@linkplain Entry#getValue() value}
+   * is a non-{@code null} {@link Integer} representing a port in the
+   * first two cases and a timeout in seconds in the third case; may
+   * be {@code null}
+   */
+  public RedirectingSocketImpl(final SocketImpl delegate, final Function<? super Entry<?, ? extends Integer>, ? extends Entry<?, ? extends Integer>> redirector) {
+    super(delegate);
+    this.redirector = redirector;
   }
 
   @Override
   protected void connect(final String host, final int port) throws IOException {
-    final Entry<?, ? extends Integer> canonicalEntry = this.redirector.apply(new SimpleImmutableEntry<>(host, port));
-    if (canonicalEntry == null) {
+    if (this.redirector == null) {
       super.connect(host, port);
     } else {
-      final Object key = canonicalEntry.getKey();
-      if (key instanceof String) {
-        super.connect((String)key, canonicalEntry.getValue());
-      } else if (key instanceof InetAddress) {
-        this.connect((InetAddress)key, canonicalEntry.getValue());
-      } else if (key instanceof SocketAddress) {
-        this.connect((SocketAddress)key, canonicalEntry.getValue());
+      final Entry<?, ? extends Integer> canonicalEntry = this.redirector.apply(new SimpleImmutableEntry<>(host, port));
+      if (canonicalEntry == null) {
+        super.connect(host, port);
       } else {
-        throw new IllegalStateException("key: " + key);
+        final Object key = canonicalEntry.getKey();
+        if (key instanceof String) {
+          super.connect((String)key, canonicalEntry.getValue());
+        } else if (key instanceof InetAddress) {
+          this.connect((InetAddress)key, canonicalEntry.getValue());
+        } else if (key instanceof SocketAddress) {
+          this.connect((SocketAddress)key, canonicalEntry.getValue());
+        } else {
+          throw new IllegalStateException("key: " + key);
+        }
       }
     }
   }
   
   @Override
   protected void connect(final InetAddress host, final int port) throws IOException {
-    final Entry<?, ? extends Integer> canonicalEntry = this.redirector.apply(new SimpleImmutableEntry<>(host, port));
-    if (canonicalEntry == null) {
+    if (this.redirector == null) {
       super.connect(host, port);
     } else {
-      final Object key = canonicalEntry.getKey();
-      if (key instanceof String) {
-        this.connect((String)key, canonicalEntry.getValue());
-      } else if (key instanceof InetAddress) {
-        super.connect((InetAddress)key, canonicalEntry.getValue());
-      } else if (key instanceof SocketAddress) {
-        this.connect((SocketAddress)key, canonicalEntry.getValue());
+      final Entry<?, ? extends Integer> canonicalEntry = this.redirector.apply(new SimpleImmutableEntry<>(host, port));
+      if (canonicalEntry == null) {
+        super.connect(host, port);
       } else {
-        throw new IllegalStateException("key: " + key);
+        final Object key = canonicalEntry.getKey();
+        if (key instanceof String) {
+          this.connect((String)key, canonicalEntry.getValue());
+        } else if (key instanceof InetAddress) {
+          super.connect((InetAddress)key, canonicalEntry.getValue());
+        } else if (key instanceof SocketAddress) {
+          this.connect((SocketAddress)key, canonicalEntry.getValue());
+        } else {
+          throw new IllegalStateException("key: " + key);
+        }
       }
     }
   }
 
   @Override
   protected void connect(final SocketAddress host, final int timeout) throws IOException {
-    final Entry<?, ? extends Integer> canonicalEntry = this.redirector.apply(new SimpleImmutableEntry<>(host, timeout));
-    if (canonicalEntry == null) {
+    if (this.redirector == null) {
       super.connect(host, timeout);
     } else {
-      final Object key = canonicalEntry.getKey();
-      if (key instanceof String) {
-        this.connect((String)key, canonicalEntry.getValue());
-      } else if (key instanceof InetAddress) {
-        this.connect((InetAddress)key, canonicalEntry.getValue());
-      } else if (key instanceof SocketAddress) {
-        super.connect((SocketAddress)key, canonicalEntry.getValue());
+      final Entry<?, ? extends Integer> canonicalEntry = this.redirector.apply(new SimpleImmutableEntry<>(host, timeout));
+      if (canonicalEntry == null) {
+        super.connect(host, timeout);
       } else {
-        throw new IllegalStateException("key: " + key);
+        final Object key = canonicalEntry.getKey();
+        if (key instanceof String) {
+          this.connect((String)key, canonicalEntry.getValue());
+        } else if (key instanceof InetAddress) {
+          this.connect((InetAddress)key, canonicalEntry.getValue());
+        } else if (key instanceof SocketAddress) {
+          super.connect((SocketAddress)key, canonicalEntry.getValue());
+        } else {
+          throw new IllegalStateException("key: " + key);
+        }
       }
     }
   }
